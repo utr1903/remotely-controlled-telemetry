@@ -4,21 +4,22 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
 
 type webSocketServer struct {
-	controllerSwitch chan bool
-	wg               *sync.WaitGroup
-	port             string
-	upgrader         *websocket.Upgrader
+	webSocketReadyChannel chan bool
+	controllerChannel     chan bool
+	wg                    *sync.WaitGroup
+	port                  string
+	upgrader              *websocket.Upgrader
 }
 
 func newWebSocketServer(
 	wg *sync.WaitGroup,
-	cs chan bool,
+	webSocketReadyChannel chan bool,
+	controllerChannel chan bool,
 	port string,
 ) *webSocketServer {
 	upgrader := websocket.Upgrader{
@@ -27,10 +28,11 @@ func newWebSocketServer(
 		},
 	}
 	return &webSocketServer{
-		controllerSwitch: cs,
-		wg:               wg,
-		port:             port,
-		upgrader:         &upgrader,
+		webSocketReadyChannel: webSocketReadyChannel,
+		controllerChannel:     controllerChannel,
+		wg:                    wg,
+		port:                  port,
+		upgrader:              &upgrader,
 	}
 }
 
@@ -56,16 +58,36 @@ func (ws *webSocketServer) handleConnections(
 		return
 	}
 	defer conn.Close()
-	fmt.Println("Web socket connection is established.")
 
-	for turnOn := range ws.controllerSwitch {
-		fmt.Println("Received: ", turnOn)
-	}
+	// Reset socket connection to false
+	conn.SetCloseHandler(
+		func(code int, text string) error {
+			fmt.Println("websocketserver: Web socket connection is lost.")
+			ws.webSocketReadyChannel <- false
+			return nil
+		})
 
-	for {
-		// Send a message every 5 seconds
-		time.Sleep(1 * time.Second)
-		message := []byte("Hello from server!")
+	fmt.Println("websocketserver: Web socket connection is established.")
+	ws.webSocketReadyChannel <- true
+
+	// Check for incoming messages in case the client disconnects
+	go func() {
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	for enable := range ws.controllerChannel {
+		fmt.Println("websocketserver: Received: ", enable)
+		var message []byte
+		if enable {
+			message = []byte("Enable!")
+		} else {
+			message = []byte("Disable!")
+		}
 		err := conn.WriteMessage(websocket.TextMessage, message)
 		if err != nil {
 			fmt.Println(err)

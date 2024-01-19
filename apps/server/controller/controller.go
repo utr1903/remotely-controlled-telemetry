@@ -9,25 +9,29 @@ const HTTP_SERVER_PORT = "8080"
 const WEB_SOCKET_PORT = "8081"
 
 type Controller struct {
-	controllerSwitch chan bool
-	wg               *sync.WaitGroup
-	httpserver       *HttpServer
-	websocketserver  *webSocketServer
+	webSocketReadyChannel chan bool
+	controllerChannel     chan bool
+	wg                    *sync.WaitGroup
+	httpserver            *HttpServer
+	websocketserver       *webSocketServer
 }
 
 func New() *Controller {
-	cs := make(chan bool)
+	webSocketReadyChannel := make(chan bool)
+	controllerChannel := make(chan bool)
+
 	wg := &sync.WaitGroup{}
 
 	wg.Add(2)
-	hs := newHttpServer(wg, cs, HTTP_SERVER_PORT)
-	ws := newWebSocketServer(wg, cs, WEB_SOCKET_PORT)
+	hs := newHttpServer(wg, webSocketReadyChannel, controllerChannel, HTTP_SERVER_PORT)
+	ws := newWebSocketServer(wg, webSocketReadyChannel, controllerChannel, WEB_SOCKET_PORT)
 
 	return &Controller{
-		controllerSwitch: cs,
-		wg:               wg,
-		httpserver:       hs,
-		websocketserver:  ws,
+		webSocketReadyChannel: webSocketReadyChannel,
+		controllerChannel:     controllerChannel,
+		wg:                    wg,
+		httpserver:            hs,
+		websocketserver:       ws,
 	}
 }
 
@@ -39,5 +43,6 @@ func (c *Controller) Run() {
 	fmt.Println("Controller is started.")
 	c.wg.Wait()
 
-	close(c.controllerSwitch)
+	close(c.webSocketReadyChannel)
+	close(c.controllerChannel)
 }

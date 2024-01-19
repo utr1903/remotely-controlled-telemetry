@@ -4,38 +4,46 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-
-	"github.com/gorilla/websocket"
 )
 
+type webSocketSynchronizer struct {
+	isReady bool
+	mutex   sync.Mutex
+}
+
 type HttpServer struct {
-	controllerSwitch chan bool
-	wg               *sync.WaitGroup
-	port             string
-	upgrader         *websocket.Upgrader
+	webSocketReadyChannel chan bool
+	webSocketSynchronizer *webSocketSynchronizer
+	controllerChannel     chan bool
+	wg                    *sync.WaitGroup
+	port                  string
 }
 
 func newHttpServer(
 	wg *sync.WaitGroup,
-	cs chan bool,
+	webSocketReadyChannel chan bool,
+	controllerChannel chan bool,
 	port string,
 ) *HttpServer {
-	upgrader := websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
+
+	webSocketSynchronizer := &webSocketSynchronizer{
+		isReady: false,
+		mutex:   sync.Mutex{},
 	}
 
 	return &HttpServer{
-		controllerSwitch: cs,
-		wg:               wg,
-		port:             port,
-		upgrader:         &upgrader,
+		webSocketReadyChannel: webSocketReadyChannel,
+		webSocketSynchronizer: webSocketSynchronizer,
+		controllerChannel:     controllerChannel,
+		wg:                    wg,
+		port:                  port,
 	}
 }
 
 func (hs *HttpServer) run() {
 	defer hs.wg.Done()
+
+	go hs.synchronizeWebSocketConnection()
 
 	http.Handle("/control", http.HandlerFunc(hs.handleTelemetryCollection))
 
@@ -50,22 +58,44 @@ func (hs *HttpServer) handleTelemetryCollection(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	if r.Method == http.MethodPost {
-		fmt.Println("Turning on...")
-		hs.controllerSwitch <- true
-		fmt.Println("Turned on.")
 
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Turned on"))
-	} else if r.Method == http.MethodDelete {
-		fmt.Println("Turning off...")
-		hs.controllerSwitch <- false
-		fmt.Println("Turned off.")
-
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Turned off"))
-	} else {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("Not valid!"))
+	if !hs.isWebSocketReady() {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Web socket connection is not yet established!"))
+		return
 	}
+
+	switch r.Method {
+	case http.MethodPost:
+		hs.controllerChannel <- true
+
+	case http.MethodDelete:
+		hs.controllerChannel <- false
+
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Request is not valid!"))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Turned on"))
+}
+
+func (hs *HttpServer) synchronizeWebSocketConnection() {
+	for isReady := range hs.webSocketReadyChannel {
+		if isReady {
+			fmt.Println("httpserver: Web socket connection is established.")
+		} else {
+			fmt.Println("httpserver: Web socket connection is lost.")
+		}
+		hs.webSocketSynchronizer.mutex.Lock()
+		hs.webSocketSynchronizer.isReady = isReady
+		hs.webSocketSynchronizer.mutex.Unlock()
+	}
+}
+
+func (hs *HttpServer) isWebSocketReady() bool {
+	hs.webSocketSynchronizer.mutex.Lock()
+	defer hs.webSocketSynchronizer.mutex.Unlock()
+	return hs.webSocketSynchronizer.isReady
 }
