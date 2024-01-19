@@ -9,29 +9,29 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type WebSocket struct {
+type WebSocketServer struct {
 	wg       *sync.WaitGroup
 	port     string
 	upgrader *websocket.Upgrader
 }
 
-func newWebSocket(
+func newWebSocketServer(
 	wg *sync.WaitGroup,
 	port string,
-) *WebSocket {
+) *WebSocketServer {
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			return true
 		},
 	}
-	return &WebSocket{
+	return &WebSocketServer{
 		wg:       wg,
 		port:     port,
 		upgrader: &upgrader,
 	}
 }
 
-func (ws *WebSocket) run() {
+func (ws *WebSocketServer) run() {
 	defer ws.wg.Done()
 
 	http.HandleFunc("/ws", ws.handleConnections)
@@ -43,7 +43,7 @@ func (ws *WebSocket) run() {
 	}
 }
 
-func (ws *WebSocket) handleConnections(
+func (ws *WebSocketServer) handleConnections(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
