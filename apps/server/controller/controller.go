@@ -9,7 +9,7 @@ const WEB_SOCKET_PORT = "8081"
 
 type Controller struct {
 	wg        *sync.WaitGroup
-	websocket *WebSocketServer
+	websocket *webSocketServer
 }
 
 func New() *Controller {
