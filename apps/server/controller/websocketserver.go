@@ -10,13 +10,15 @@ import (
 )
 
 type webSocketServer struct {
-	wg       *sync.WaitGroup
-	port     string
-	upgrader *websocket.Upgrader
+	controllerSwitch chan bool
+	wg               *sync.WaitGroup
+	port             string
+	upgrader         *websocket.Upgrader
 }
 
 func newWebSocketServer(
 	wg *sync.WaitGroup,
+	cs chan bool,
 	port string,
 ) *webSocketServer {
 	upgrader := websocket.Upgrader{
@@ -25,9 +27,10 @@ func newWebSocketServer(
 		},
 	}
 	return &webSocketServer{
-		wg:       wg,
-		port:     port,
-		upgrader: &upgrader,
+		controllerSwitch: cs,
+		wg:               wg,
+		port:             port,
+		upgrader:         &upgrader,
 	}
 }
 
@@ -35,8 +38,8 @@ func (ws *webSocketServer) run() {
 	defer ws.wg.Done()
 
 	http.HandleFunc("/ws", ws.handleConnections)
-	fmt.Println("Server is running on ", ws.port)
 
+	fmt.Println("Web socket server is running on ", ws.port)
 	err := http.ListenAndServe(":"+ws.port, nil)
 	if err != nil {
 		fmt.Println(err)
@@ -53,6 +56,11 @@ func (ws *webSocketServer) handleConnections(
 		return
 	}
 	defer conn.Close()
+	fmt.Println("Web socket connection is established.")
+
+	for turnOn := range ws.controllerSwitch {
+		fmt.Println("Received: ", turnOn)
+	}
 
 	for {
 		// Send a message every 5 seconds
