@@ -128,9 +128,10 @@ func (o *otelCollectorConfigGenerator) generate() error {
 	if err != nil {
 		o.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Generating OTel config failed: "+err.Error(),
+			"Generating OTel config failed.",
 			map[string]string{
 				"component.name": "otelconfiggenerator",
+				"error.message":  err.Error(),
 			})
 		return err
 	}
@@ -147,9 +148,10 @@ func (o *otelCollectorConfigGenerator) generate() error {
 	if err != nil {
 		o.logger.LogWithFields(
 			logrus.InfoLevel,
-			"Creating OTel config file failed: "+err.Error(),
+			"Creating OTel config file failed.",
 			map[string]string{
 				"component.name": "otelconfiggenerator",
+				"error.message":  err.Error(),
 			})
 		return err
 	}
@@ -167,9 +169,10 @@ func (o *otelCollectorConfigGenerator) generate() error {
 	if err != nil {
 		o.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Writing OTel config to file failed: "+err.Error(),
+			"Writing OTel config to file failed.",
 			map[string]string{
 				"component.name": "otelconfiggenerator",
+				"error.message":  err.Error(),
 			})
 		return err
 	}
