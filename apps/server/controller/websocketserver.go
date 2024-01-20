@@ -42,7 +42,7 @@ func (ws *webSocketServer) run() {
 	http.HandleFunc("/ws", ws.handleConnections)
 
 	fmt.Println("Web socket server is running on ", ws.port)
-	err := http.ListenAndServe(":"+ws.port, nil)
+	err := http.ListenAndServe("localhost:"+ws.port, nil)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -84,9 +84,9 @@ func (ws *webSocketServer) handleConnections(
 		fmt.Println("websocketserver: Received: ", enable)
 		var message []byte
 		if enable {
-			message = []byte("Enable!")
+			message = []byte("run")
 		} else {
-			message = []byte("Disable!")
+			message = []byte("stop")
 		}
 		err := conn.WriteMessage(websocket.TextMessage, message)
 		if err != nil {
