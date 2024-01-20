@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -73,16 +72,14 @@ func (wc *websocketClient) run() {
 					map[string]string{
 						"component.name": "websocketclient",
 					})
-
-				wc.controllerChannel <- false
-
 				return
 			}
 			wc.logger.LogWithFields(
 				logrus.InfoLevel,
-				"Message is read: "+string(message),
+				"Message is read.",
 				map[string]string{
 					"component.name": "websocketclient",
+					"signal":         string(message),
 				})
 
 			msg := string(message)
@@ -95,17 +92,27 @@ func (wc *websocketClient) run() {
 		}
 	}()
 
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
+	healthCheck := time.NewTicker(5 * time.Second)
+	defer healthCheck.Stop()
 
 	for {
 		select {
 		case <-done:
-			fmt.Println("Done1")
+			wc.logger.LogWithFields(
+				logrus.InfoLevel,
+				"Application is shut down gracefully.",
+				map[string]string{
+					"component.name": "websocketclient",
+				})
 			return
-		case <-ticker.C:
+		case <-healthCheck.C:
 			// Do nothing, just wait for messages from the server
-			fmt.Println("Ticket")
+			wc.logger.LogWithFields(
+				logrus.DebugLevel,
+				"Health check is successful.",
+				map[string]string{
+					"component.name": "websocketclient",
+				})
 		case <-interrupt:
 			wc.logger.LogWithFields(
 				logrus.ErrorLevel,
@@ -122,17 +129,6 @@ func (wc *websocketClient) run() {
 						"component.name": "websocketclient",
 					})
 				return
-			}
-			select {
-			case <-done:
-				fmt.Println("Done2")
-			case <-time.After(time.Second):
-				wc.logger.LogWithFields(
-					logrus.DebugLevel,
-					"Health check successful.",
-					map[string]string{
-						"component.name": "websocketclient",
-					})
 			}
 			return
 		}
