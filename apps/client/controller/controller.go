@@ -1,11 +1,14 @@
 package controller
 
 import (
-	"fmt"
 	"sync"
+
+	"github.com/sirupsen/logrus"
+	"github.com/utr1903/remotely-controlled-telemetry/apps/client/logger"
 )
 
 type Controller struct {
+	logger            *logger.Logger
 	controllerChannel chan bool
 	wg                *sync.WaitGroup
 	webSocketClient   *websocketClient
@@ -13,6 +16,7 @@ type Controller struct {
 }
 
 func New(
+	logger *logger.Logger,
 	webSocketUrl string,
 ) *Controller {
 
@@ -21,10 +25,11 @@ func New(
 	wg := &sync.WaitGroup{}
 
 	wg.Add(2)
-	cr := newCollectorRunner(wg, controllerChannel)
-	wc := newWebSocketClient(wg, controllerChannel, webSocketUrl)
+	cr := newCollectorRunner(logger, wg, controllerChannel)
+	wc := newWebSocketClient(logger, wg, controllerChannel, webSocketUrl)
 
 	return &Controller{
+		logger:            logger,
 		controllerChannel: controllerChannel,
 		wg:                wg,
 		webSocketClient:   wc,
@@ -37,6 +42,11 @@ func (c *Controller) Run() {
 	go c.collectorRunner.run()
 	go c.webSocketClient.run()
 
-	fmt.Println("Controller is started.")
+	c.logger.LogWithFields(
+		logrus.InfoLevel,
+		"Controller is started.",
+		map[string]string{
+			"component.name": "controller",
+		})
 	c.wg.Wait()
 }

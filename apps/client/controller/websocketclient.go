@@ -8,20 +8,25 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
+	"github.com/utr1903/remotely-controlled-telemetry/apps/client/logger"
 )
 
 type websocketClient struct {
+	logger             *logger.Logger
 	wg                 *sync.WaitGroup
 	controllerChannel  chan bool
 	websocketServerUrl string
 }
 
 func newWebSocketClient(
+	logger *logger.Logger,
 	wg *sync.WaitGroup,
 	controllerChannel chan bool,
 	websocketServerUrl string,
 ) *websocketClient {
 	return &websocketClient{
+		logger:             logger,
 		wg:                 wg,
 		controllerChannel:  controllerChannel,
 		websocketServerUrl: websocketServerUrl,
@@ -34,9 +39,21 @@ func (wc *websocketClient) run() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
+	wc.logger.LogWithFields(
+		logrus.InfoLevel,
+		"Starting web socket client...",
+		map[string]string{
+			"component.name": "websocketclient",
+		})
+
 	conn, _, err := websocket.DefaultDialer.Dial(wc.websocketServerUrl, nil)
 	if err != nil {
-		fmt.Println("Error connecting to server:", err)
+		wc.logger.LogWithFields(
+			logrus.ErrorLevel,
+			"Starting web socket client is failed: "+err.Error(),
+			map[string]string{
+				"component.name": "websocketclient",
+			})
 		return
 	}
 	defer conn.Close()
@@ -50,12 +67,23 @@ func (wc *websocketClient) run() {
 		for {
 			_, message, err := conn.ReadMessage()
 			if err != nil {
-				fmt.Println("Error reading message:", err)
+				wc.logger.LogWithFields(
+					logrus.ErrorLevel,
+					"Error occurred during reading message: "+err.Error(),
+					map[string]string{
+						"component.name": "websocketclient",
+					})
+
 				wc.controllerChannel <- false
 
 				return
 			}
-			fmt.Printf("Received message from server: %s\n", message)
+			wc.logger.LogWithFields(
+				logrus.InfoLevel,
+				"Message is read: "+string(message),
+				map[string]string{
+					"component.name": "websocketclient",
+				})
 
 			msg := string(message)
 			if msg == "run" {
@@ -79,17 +107,32 @@ func (wc *websocketClient) run() {
 			// Do nothing, just wait for messages from the server
 			fmt.Println("Ticket")
 		case <-interrupt:
-			fmt.Println("Interrupt received, closing connection.")
+			wc.logger.LogWithFields(
+				logrus.ErrorLevel,
+				"Interrupt received, closing connection...",
+				map[string]string{
+					"component.name": "websocketclient",
+				})
 			err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 			if err != nil {
-				fmt.Println("Error sending close message:", err)
+				wc.logger.LogWithFields(
+					logrus.ErrorLevel,
+					"Error occurred during sending close message: "+err.Error(),
+					map[string]string{
+						"component.name": "websocketclient",
+					})
 				return
 			}
 			select {
 			case <-done:
 				fmt.Println("Done2")
 			case <-time.After(time.Second):
-				fmt.Println("Ticker2")
+				wc.logger.LogWithFields(
+					logrus.DebugLevel,
+					"Health check successful.",
+					map[string]string{
+						"component.name": "websocketclient",
+					})
 			}
 			return
 		}
