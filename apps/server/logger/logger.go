@@ -34,7 +34,7 @@ func (l *Logger) LogWithFields(
 	}
 
 	// Put common attributes
-	fields["service.name"] = "client"
+	fields["service.name"] = "server"
 
 	switch lvl {
 	case logrus.ErrorLevel:
