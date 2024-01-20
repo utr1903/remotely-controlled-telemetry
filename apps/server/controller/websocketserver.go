@@ -3,12 +3,16 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
+	"github.com/utr1903/remotely-controlled-telemetry/apps/server/logger"
 )
 
 type webSocketServer struct {
+	logger                *logger.Logger
 	webSocketReadyChannel chan bool
 	controllerChannel     chan bool
 	wg                    *sync.WaitGroup
@@ -17,6 +21,7 @@ type webSocketServer struct {
 }
 
 func newWebSocketServer(
+	logger *logger.Logger,
 	wg *sync.WaitGroup,
 	webSocketReadyChannel chan bool,
 	controllerChannel chan bool,
@@ -28,6 +33,7 @@ func newWebSocketServer(
 		},
 	}
 	return &webSocketServer{
+		logger:                logger,
 		webSocketReadyChannel: webSocketReadyChannel,
 		controllerChannel:     controllerChannel,
 		wg:                    wg,
@@ -41,7 +47,13 @@ func (ws *webSocketServer) run() {
 
 	http.HandleFunc("/ws", ws.handleConnections)
 
-	fmt.Println("Web socket server is running on ", ws.port)
+	ws.logger.LogWithFields(
+		logrus.InfoLevel,
+		"Web socket server is running on localhost:"+ws.port,
+		map[string]string{
+			"component.name": "websocketserver",
+		})
+
 	err := http.ListenAndServe("localhost:"+ws.port, nil)
 	if err != nil {
 		fmt.Println(err)
@@ -62,12 +74,23 @@ func (ws *webSocketServer) handleConnections(
 	// Reset socket connection to false
 	conn.SetCloseHandler(
 		func(code int, text string) error {
-			fmt.Println("websocketserver: Web socket connection is lost.")
+			ws.logger.LogWithFields(
+				logrus.ErrorLevel,
+				"Web socket connection is lost.",
+				map[string]string{
+					"component.name": "websocketserver",
+				})
 			ws.webSocketReadyChannel <- false
 			return nil
 		})
 
-	fmt.Println("websocketserver: Web socket connection is established.")
+	ws.logger.LogWithFields(
+		logrus.InfoLevel,
+		"Web socket connection is established.",
+		map[string]string{
+			"component.name": "websocketserver",
+		})
+
 	ws.webSocketReadyChannel <- true
 
 	// Check for incoming messages in case the client disconnects
@@ -81,7 +104,13 @@ func (ws *webSocketServer) handleConnections(
 	}()
 
 	for enable := range ws.controllerChannel {
-		fmt.Println("websocketserver: Received: ", enable)
+		ws.logger.LogWithFields(
+			logrus.InfoLevel,
+			"Controller channel input received: "+strconv.FormatBool(enable),
+			map[string]string{
+				"component.name": "websocketserver",
+			})
+
 		var message []byte
 		if enable {
 			message = []byte("run")
@@ -90,7 +119,12 @@ func (ws *webSocketServer) handleConnections(
 		}
 		err := conn.WriteMessage(websocket.TextMessage, message)
 		if err != nil {
-			fmt.Println(err)
+			ws.logger.LogWithFields(
+				logrus.ErrorLevel,
+				"Error occurred during writing message to web socket: "+err.Error(),
+				map[string]string{
+					"component.name": "websocketserver",
+				})
 			return
 		}
 	}

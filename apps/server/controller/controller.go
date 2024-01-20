@@ -1,14 +1,17 @@
 package controller
 
 import (
-	"fmt"
 	"sync"
+
+	"github.com/sirupsen/logrus"
+	"github.com/utr1903/remotely-controlled-telemetry/apps/server/logger"
 )
 
 const HTTP_SERVER_PORT = "8080"
 const WEB_SOCKET_PORT = "8081"
 
 type Controller struct {
+	logger                *logger.Logger
 	webSocketReadyChannel chan bool
 	controllerChannel     chan bool
 	wg                    *sync.WaitGroup
@@ -16,17 +19,20 @@ type Controller struct {
 	websocketserver       *webSocketServer
 }
 
-func New() *Controller {
+func New(
+	logger *logger.Logger,
+) *Controller {
 	webSocketReadyChannel := make(chan bool)
 	controllerChannel := make(chan bool)
 
 	wg := &sync.WaitGroup{}
 
 	wg.Add(2)
-	hs := newHttpServer(wg, webSocketReadyChannel, controllerChannel, HTTP_SERVER_PORT)
-	ws := newWebSocketServer(wg, webSocketReadyChannel, controllerChannel, WEB_SOCKET_PORT)
+	hs := newHttpServer(logger, wg, webSocketReadyChannel, controllerChannel, HTTP_SERVER_PORT)
+	ws := newWebSocketServer(logger, wg, webSocketReadyChannel, controllerChannel, WEB_SOCKET_PORT)
 
 	return &Controller{
+		logger:                logger,
 		webSocketReadyChannel: webSocketReadyChannel,
 		controllerChannel:     controllerChannel,
 		wg:                    wg,
@@ -40,7 +46,13 @@ func (c *Controller) Run() {
 	go c.httpserver.run()
 	go c.websocketserver.run()
 
-	fmt.Println("Controller is started.")
+	c.logger.LogWithFields(
+		logrus.InfoLevel,
+		"Controller is started.",
+		map[string]string{
+			"component.name": "controller",
+		})
+
 	c.wg.Wait()
 
 	close(c.webSocketReadyChannel)
