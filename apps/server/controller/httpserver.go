@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+
+	"github.com/sirupsen/logrus"
+	"github.com/utr1903/remotely-controlled-telemetry/apps/server/logger"
 )
 
 type webSocketSynchronizer struct {
@@ -12,6 +15,7 @@ type webSocketSynchronizer struct {
 }
 
 type HttpServer struct {
+	logger                *logger.Logger
 	webSocketReadyChannel chan bool
 	webSocketSynchronizer *webSocketSynchronizer
 	controllerChannel     chan bool
@@ -20,6 +24,7 @@ type HttpServer struct {
 }
 
 func newHttpServer(
+	logger *logger.Logger,
 	wg *sync.WaitGroup,
 	webSocketReadyChannel chan bool,
 	controllerChannel chan bool,
@@ -32,6 +37,7 @@ func newHttpServer(
 	}
 
 	return &HttpServer{
+		logger:                logger,
 		webSocketReadyChannel: webSocketReadyChannel,
 		webSocketSynchronizer: webSocketSynchronizer,
 		controllerChannel:     controllerChannel,
@@ -48,6 +54,12 @@ func (hs *HttpServer) run() {
 	http.Handle("/control", http.HandlerFunc(hs.handleTelemetryCollection))
 
 	fmt.Println("HTTP server is running on ", hs.port)
+	hs.logger.LogWithFields(
+		logrus.InfoLevel,
+		"HTTP server is running on localhost:"+hs.port,
+		map[string]string{
+			"component.name": "httpserver",
+		})
 	err := http.ListenAndServe("localhost:"+hs.port, nil)
 	if err != nil {
 		fmt.Println(err)
@@ -60,8 +72,15 @@ func (hs *HttpServer) handleTelemetryCollection(
 ) {
 
 	if !hs.isWebSocketReady() {
+		msg := "Web socket connection is not yet established!"
+		hs.logger.LogWithFields(
+			logrus.ErrorLevel,
+			msg,
+			map[string]string{
+				"component.name": "httpserver",
+			})
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Web socket connection is not yet established!"))
+		w.Write([]byte(msg))
 		return
 	}
 
@@ -69,25 +88,62 @@ func (hs *HttpServer) handleTelemetryCollection(
 	case http.MethodPost:
 		hs.controllerChannel <- true
 
+		msg := "Signal is sent to the client to run the collector."
+		hs.logger.LogWithFields(
+			logrus.InfoLevel,
+			msg,
+			map[string]string{
+				"component.name": "httpserver",
+			})
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(msg))
+
 	case http.MethodDelete:
 		hs.controllerChannel <- false
 
+		msg := "Signal is sent to the client to stop the collector."
+		hs.logger.LogWithFields(
+			logrus.InfoLevel,
+			msg,
+			map[string]string{
+				"component.name": "httpserver",
+			})
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(msg))
+
 	default:
+		msg := "Request is not valid!"
+		hs.logger.LogWithFields(
+			logrus.ErrorLevel,
+			msg,
+			map[string]string{
+				"component.name": "httpserver",
+			})
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Request is not valid!"))
+		w.Write([]byte(msg))
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Turned on"))
 }
 
 func (hs *HttpServer) synchronizeWebSocketConnection() {
 	for isReady := range hs.webSocketReadyChannel {
 		if isReady {
-			fmt.Println("httpserver: Web socket connection is established.")
+			hs.logger.LogWithFields(
+				logrus.ErrorLevel,
+				"Web socket connection is established.",
+				map[string]string{
+					"component.name": "httpserver",
+				})
+
 		} else {
-			fmt.Println("httpserver: Web socket connection is lost.")
+			hs.logger.LogWithFields(
+				logrus.ErrorLevel,
+				"Web socket connection is lost.",
+				map[string]string{
+					"component.name": "httpserver",
+				})
 		}
+
 		hs.webSocketSynchronizer.mutex.Lock()
 		hs.webSocketSynchronizer.isReady = isReady
 		hs.webSocketSynchronizer.mutex.Unlock()
