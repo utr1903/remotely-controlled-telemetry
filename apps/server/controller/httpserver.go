@@ -53,7 +53,6 @@ func (hs *HttpServer) run() {
 
 	http.Handle("/control", http.HandlerFunc(hs.handleTelemetryCollection))
 
-	fmt.Println("HTTP server is running on ", hs.port)
 	hs.logger.LogWithFields(
 		logrus.InfoLevel,
 		"HTTP server is running on localhost:"+hs.port,
