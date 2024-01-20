@@ -49,9 +49,10 @@ func (wc *websocketClient) run() {
 	if err != nil {
 		wc.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Starting web socket client is failed: "+err.Error(),
+			"Starting web socket client is failed,",
 			map[string]string{
 				"component.name": "websocketclient",
+				"error.message":  err.Error(),
 			})
 		return
 	}
@@ -68,9 +69,10 @@ func (wc *websocketClient) run() {
 			if err != nil {
 				wc.logger.LogWithFields(
 					logrus.ErrorLevel,
-					"Error occurred during reading message: "+err.Error(),
+					"Error occurred during reading message.",
 					map[string]string{
 						"component.name": "websocketclient",
+						"error.message":  err.Error(),
 					})
 				return
 			}
@@ -124,9 +126,10 @@ func (wc *websocketClient) run() {
 			if err != nil {
 				wc.logger.LogWithFields(
 					logrus.ErrorLevel,
-					"Error occurred during sending close message: "+err.Error(),
+					"Error occurred during sending close message.",
 					map[string]string{
 						"component.name": "websocketclient",
+						"error.message":  err.Error(),
 					})
 				return
 			}

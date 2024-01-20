@@ -59,9 +59,10 @@ func (c *Collector) Start() error {
 	if err != nil {
 		c.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Starting collector is failed: "+err.Error(),
+			"Starting collector is failed.",
 			map[string]string{
 				"component.name": "collector",
+				"error.message":  err.Error(),
 			})
 		return err
 	}
@@ -80,9 +81,10 @@ func (c *Collector) start() error {
 	if err != nil {
 		c.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Current directory is not retrieved: "+err.Error(),
+			"Current directory is not retrieved.",
 			map[string]string{
 				"component.name": "collector",
+				"error.message":  err.Error(),
 			})
 		return err
 	}
@@ -103,9 +105,10 @@ func (c *Collector) start() error {
 	if err := cmd.Start(); err != nil {
 		c.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Starting OTel collector is failed:"+err.Error(),
+			"Starting OTel collector is failed:",
 			map[string]string{
 				"component.name": "collector",
+				"error.message":  err.Error(),
 			})
 		return err
 	}
@@ -147,9 +150,10 @@ func (c *Collector) Stop() error {
 	if err != nil {
 		c.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Process is not found: "+err.Error(),
+			"Process is not found.",
 			map[string]string{
 				"component.name":     "collector",
+				"error.message":      err.Error(),
 				"otelcol.process.id": strconv.FormatInt(int64(pid), 10),
 			})
 		return err
@@ -167,9 +171,10 @@ func (c *Collector) Stop() error {
 	if err != nil {
 		c.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Stopping process failed: "+err.Error(),
+			"Stopping process failed.",
 			map[string]string{
 				"component.name":     "collector",
+				"error.message":      err.Error(),
 				"otelcol.process.id": strconv.FormatInt(int64(pid), 10),
 			})
 		return err
