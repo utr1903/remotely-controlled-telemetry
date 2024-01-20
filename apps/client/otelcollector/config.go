@@ -1,9 +1,10 @@
 package otelcollector
 
 import (
-	"fmt"
 	"os"
 
+	"github.com/sirupsen/logrus"
+	"github.com/utr1903/remotely-controlled-telemetry/apps/client/logger"
 	"gopkg.in/yaml.v2"
 )
 
@@ -33,18 +34,18 @@ type otelCollectorConfig struct {
 }
 
 type otelCollectorConfigGenerator struct {
+	logger *logger.Logger
 }
 
-func Test() {
-	occg := newOtelCollectorConfigGenerator()
-	occg.generate()
+func newOtelCollectorConfigGenerator(
+	logger *logger.Logger,
+) *otelCollectorConfigGenerator {
+	return &otelCollectorConfigGenerator{
+		logger: logger,
+	}
 }
 
-func newOtelCollectorConfigGenerator() *otelCollectorConfigGenerator {
-	return &otelCollectorConfigGenerator{}
-}
-
-func (o *otelCollectorConfigGenerator) generate() {
+func (o *otelCollectorConfigGenerator) generate() error {
 
 	cfg := &otelCollectorConfig{
 		Receivers: struct {
@@ -117,26 +118,67 @@ func (o *otelCollectorConfigGenerator) generate() {
 	}
 
 	// Marshal the struct into YAML format
+	o.logger.LogWithFields(
+		logrus.InfoLevel,
+		"Generating OTel config file...",
+		map[string]string{
+			"component.name": "otelconfiggenerator",
+		})
 	yamlData, err := yaml.Marshal(cfg)
 	if err != nil {
-		fmt.Printf("Error marshaling YAML: %v\n", err)
-		return
+		o.logger.LogWithFields(
+			logrus.ErrorLevel,
+			"Generating OTel config failed: "+err.Error(),
+			map[string]string{
+				"component.name": "otelconfiggenerator",
+			})
+		return err
 	}
 
-	fmt.Println(string(yamlData))
+	o.logger.LogWithFields(
+		logrus.InfoLevel,
+		"Generating OTel config succeeded. Creating file...",
+		map[string]string{
+			"component.name": "otelconfiggenerator",
+		})
 
 	// Create the YAML file
 	file, err := os.Create("./bin/otel-config-test.yaml")
 	if err != nil {
-		fmt.Printf("Error creating YAML file: %v\n", err)
-		return
+		o.logger.LogWithFields(
+			logrus.InfoLevel,
+			"Creating OTel config file failed: "+err.Error(),
+			map[string]string{
+				"component.name": "otelconfiggenerator",
+			})
+		return err
 	}
 	defer file.Close()
+
+	o.logger.LogWithFields(
+		logrus.InfoLevel,
+		"Creating OTel config succeeded. Writing to file...",
+		map[string]string{
+			"component.name": "otelconfiggenerator",
+		})
 
 	// Write the YAML data to the file
 	_, err = file.Write(yamlData)
 	if err != nil {
-		fmt.Printf("Error writing YAML data to file: %v\n", err)
-		return
+		o.logger.LogWithFields(
+			logrus.ErrorLevel,
+			"Writing OTel config to file failed: "+err.Error(),
+			map[string]string{
+				"component.name": "otelconfiggenerator",
+			})
+		return err
 	}
+	o.logger.LogWithFields(
+		logrus.InfoLevel,
+		"Writing OTel config to file succeeded.",
+		map[string]string{
+			"component.name": "otelconfiggenerator",
+		})
+
+	return nil
 }

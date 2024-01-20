@@ -19,8 +19,9 @@ type runnerSynchronizer struct {
 }
 
 type Collector struct {
-	logger             *logger.Logger
-	runnerSynchronizer *runnerSynchronizer
+	logger                       *logger.Logger
+	runnerSynchronizer           *runnerSynchronizer
+	otelCollectorConfigGenerator *otelCollectorConfigGenerator
 }
 
 func New(
@@ -33,10 +34,19 @@ func New(
 			pid:       nil,
 			mutex:     &sync.Mutex{},
 		},
+		otelCollectorConfigGenerator: newOtelCollectorConfigGenerator(
+			logger,
+		),
 	}
 }
 
 func (c *Collector) Start() error {
+
+	// Generate OTel collector config file
+	err := c.otelCollectorConfigGenerator.generate()
+	if err != nil {
+		return err
+	}
 
 	// Start collector
 	c.logger.LogWithFields(
@@ -45,7 +55,7 @@ func (c *Collector) Start() error {
 		map[string]string{
 			"component.name": "collector",
 		})
-	err := c.start()
+	err = c.start()
 	if err != nil {
 		c.logger.LogWithFields(
 			logrus.ErrorLevel,
