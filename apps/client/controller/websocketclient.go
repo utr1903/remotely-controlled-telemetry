@@ -11,17 +11,20 @@ import (
 )
 
 type websocketClient struct {
-	websocketServerUrl string
 	wg                 *sync.WaitGroup
+	controllerChannel  chan bool
+	websocketServerUrl string
 }
 
 func newWebSocketClient(
 	wg *sync.WaitGroup,
+	controllerChannel chan bool,
 	websocketServerUrl string,
 ) *websocketClient {
 	return &websocketClient{
-		websocketServerUrl: websocketServerUrl,
 		wg:                 wg,
+		controllerChannel:  controllerChannel,
+		websocketServerUrl: websocketServerUrl,
 	}
 }
 
@@ -31,7 +34,6 @@ func (wc *websocketClient) run() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	fmt.Println("HERE")
 	conn, _, err := websocket.DefaultDialer.Dial(wc.websocketServerUrl, nil)
 	if err != nil {
 		fmt.Println("Error connecting to server:", err)
@@ -43,13 +45,25 @@ func (wc *websocketClient) run() {
 
 	go func() {
 		defer close(done)
+		defer close(wc.controllerChannel)
+
 		for {
 			_, message, err := conn.ReadMessage()
 			if err != nil {
 				fmt.Println("Error reading message:", err)
+				wc.controllerChannel <- false
+
 				return
 			}
 			fmt.Printf("Received message from server: %s\n", message)
+
+			msg := string(message)
+			if msg == "run" {
+				wc.controllerChannel <- true
+
+			} else if msg == "stop" {
+				wc.controllerChannel <- false
+			}
 		}
 	}()
 
