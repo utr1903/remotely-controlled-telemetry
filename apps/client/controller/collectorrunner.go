@@ -43,9 +43,10 @@ func (cr *collectorRunner) run() {
 	if err != nil {
 		cr.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Starting controller runner is failed:"+err.Error(),
+			"Starting controller runner is failed.",
 			map[string]string{
 				"component.name": "controllerrunner",
+				"error.message":  err.Error(),
 			})
 		return
 	}

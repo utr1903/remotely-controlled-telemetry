@@ -1,7 +1,6 @@
 package otelcollector
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,8 +19,9 @@ type runnerSynchronizer struct {
 }
 
 type Collector struct {
-	logger             *logger.Logger
-	runnerSynchronizer *runnerSynchronizer
+	logger                       *logger.Logger
+	runnerSynchronizer           *runnerSynchronizer
+	otelCollectorConfigGenerator *otelCollectorConfigGenerator
 }
 
 func New(
@@ -34,10 +34,19 @@ func New(
 			pid:       nil,
 			mutex:     &sync.Mutex{},
 		},
+		otelCollectorConfigGenerator: newOtelCollectorConfigGenerator(
+			logger,
+		),
 	}
 }
 
 func (c *Collector) Start() error {
+
+	// Generate OTel collector config file
+	err := c.otelCollectorConfigGenerator.generate()
+	if err != nil {
+		return err
+	}
 
 	// Start collector
 	c.logger.LogWithFields(
@@ -46,13 +55,14 @@ func (c *Collector) Start() error {
 		map[string]string{
 			"component.name": "collector",
 		})
-	err := c.start()
+	err = c.start()
 	if err != nil {
 		c.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Starting collector is failed: "+err.Error(),
+			"Starting collector is failed.",
 			map[string]string{
 				"component.name": "collector",
+				"error.message":  err.Error(),
 			})
 		return err
 	}
@@ -64,16 +74,6 @@ func (c *Collector) Start() error {
 			"component.name": "collector",
 		})
 	return nil
-
-	// // Wait for the process to finish or be interrupted
-	// if err := cmd.Wait(); err != nil {
-	// 	fmt.Println("Process finished with error:", err)
-	// }
-
-	// // Stop the process by sending SIGTERM
-	// if err := Stop(*pid); err != nil {
-	// 	fmt.Println("Error stopping process:", err)
-	// }
 }
 
 func (c *Collector) start() error {
@@ -81,9 +81,10 @@ func (c *Collector) start() error {
 	if err != nil {
 		c.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Current directory is not retrieved: "+err.Error(),
+			"Current directory is not retrieved.",
 			map[string]string{
 				"component.name": "collector",
+				"error.message":  err.Error(),
 			})
 		return err
 	}
@@ -95,7 +96,6 @@ func (c *Collector) start() error {
 	cmd := exec.Command(appPath, "--config=./bin/otel-config.yaml")
 
 	// Start the process
-	fmt.Println("Starting otel collector...")
 	c.logger.LogWithFields(
 		logrus.InfoLevel,
 		"Starting OTel collector...",
@@ -105,9 +105,10 @@ func (c *Collector) start() error {
 	if err := cmd.Start(); err != nil {
 		c.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Starting OTel collector is failed:"+err.Error(),
+			"Starting OTel collector is failed:",
 			map[string]string{
 				"component.name": "collector",
+				"error.message":  err.Error(),
 			})
 		return err
 	}
@@ -116,9 +117,10 @@ func (c *Collector) start() error {
 	pid := cmd.Process.Pid
 	c.logger.LogWithFields(
 		logrus.InfoLevel,
-		"OTel collector is started on process: "+strconv.FormatInt(int64(pid), 10),
+		"OTel collector is started.",
 		map[string]string{
-			"component.name": "collector",
+			"component.name":     "collector",
+			"otelcol.process.id": strconv.FormatInt(int64(pid), 10),
 		})
 	c.sync(true, &pid)
 
@@ -130,25 +132,29 @@ func (c *Collector) Stop() error {
 	pid := c.getPid()
 	c.logger.LogWithFields(
 		logrus.InfoLevel,
-		"Stopping OTel collector on process: "+strconv.FormatInt(int64(pid), 10),
+		"Stopping OTel collector...",
 		map[string]string{
-			"component.name": "collector",
+			"component.name":     "collector",
+			"otelcol.process.id": strconv.FormatInt(int64(pid), 10),
 		})
 
 	// Find the process by its ID
 	c.logger.LogWithFields(
 		logrus.InfoLevel,
-		"Finding process: "+strconv.FormatInt(int64(pid), 10),
+		"Finding process...",
 		map[string]string{
-			"component.name": "collector",
+			"component.name":     "collector",
+			"otelcol.process.id": strconv.FormatInt(int64(pid), 10),
 		})
 	process, err := os.FindProcess(*c.runnerSynchronizer.pid)
 	if err != nil {
 		c.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Process "+strconv.FormatInt(int64(pid), 10)+" is not found: "+err.Error(),
+			"Process is not found.",
 			map[string]string{
-				"component.name": "collector",
+				"component.name":     "collector",
+				"error.message":      err.Error(),
+				"otelcol.process.id": strconv.FormatInt(int64(pid), 10),
 			})
 		return err
 	}
@@ -156,25 +162,29 @@ func (c *Collector) Stop() error {
 	// Send SIGTERM signal to the process
 	c.logger.LogWithFields(
 		logrus.InfoLevel,
-		"Process "+strconv.FormatInt(int64(pid), 10)+" is found. Stopping...",
+		"Process is found. Stopping...",
 		map[string]string{
-			"component.name": "collector",
+			"component.name":     "collector",
+			"otelcol.process.id": strconv.FormatInt(int64(pid), 10),
 		})
 	err = process.Signal(syscall.SIGTERM)
 	if err != nil {
 		c.logger.LogWithFields(
 			logrus.ErrorLevel,
-			"Stopping process "+strconv.FormatInt(int64(pid), 10)+" failed: "+err.Error(),
+			"Stopping process failed.",
 			map[string]string{
-				"component.name": "collector",
+				"component.name":     "collector",
+				"error.message":      err.Error(),
+				"otelcol.process.id": strconv.FormatInt(int64(pid), 10),
 			})
 		return err
 	}
 	c.logger.LogWithFields(
 		logrus.InfoLevel,
-		"Stopping process "+strconv.FormatInt(int64(pid), 10)+" succeeded: "+err.Error(),
+		"Stopping process succeeded.",
 		map[string]string{
-			"component.name": "collector",
+			"component.name":     "collector",
+			"otelcol.process.id": strconv.FormatInt(int64(pid), 10),
 		})
 
 	c.sync(false, nil)
