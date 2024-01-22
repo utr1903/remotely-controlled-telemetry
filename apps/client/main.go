@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/utr1903/remotely-controlled-telemetry/apps/client/app"
 	"github.com/utr1903/remotely-controlled-telemetry/apps/client/controller"
 	"github.com/utr1903/remotely-controlled-telemetry/apps/client/logger"
 )
@@ -12,5 +13,9 @@ func main() {
 
 	// Run controller
 	c := controller.New(l, "ws://localhost:8081/ws")
-	c.Run()
+	go c.Run()
+
+	// Run the application
+	a := app.New(l)
+	a.Run()
 }

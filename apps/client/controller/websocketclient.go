@@ -85,7 +85,7 @@ func (wc *websocketClient) run() {
 				})
 
 			msg := string(message)
-			if msg == "run" {
+			if msg == "start" {
 				wc.controllerChannel <- true
 
 			} else if msg == "stop" {
@@ -131,7 +131,6 @@ func (wc *websocketClient) run() {
 						"component.name": "websocketclient",
 						"error.message":  err.Error(),
 					})
-				return
 			}
 			return
 		}

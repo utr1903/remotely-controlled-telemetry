@@ -98,22 +98,30 @@ func (ws *webSocketServer) handleConnections(
 		for {
 			_, _, err := conn.ReadMessage()
 			if err != nil {
+				ws.logger.LogWithFields(
+					logrus.ErrorLevel,
+					"Error occurred during reading message from the client.",
+					map[string]string{
+						"component.name": "websocketserver",
+						"error.message":  err.Error(),
+					})
 				return
 			}
 		}
 	}()
 
-	for enable := range ws.controllerChannel {
+	for otelColSwitch := range ws.controllerChannel {
 		ws.logger.LogWithFields(
 			logrus.InfoLevel,
-			"Controller channel input received: "+strconv.FormatBool(enable),
+			"Controller channel input received.",
 			map[string]string{
 				"component.name": "websocketserver",
+				"otelcol.enable": strconv.FormatBool(otelColSwitch),
 			})
 
 		var message []byte
-		if enable {
-			message = []byte("run")
+		if otelColSwitch {
+			message = []byte("start")
 		} else {
 			message = []byte("stop")
 		}
@@ -121,11 +129,11 @@ func (ws *webSocketServer) handleConnections(
 		if err != nil {
 			ws.logger.LogWithFields(
 				logrus.ErrorLevel,
-				"Error occurred during writing message to web socket: "+err.Error(),
+				"Error occurred during writing message to web socket.",
 				map[string]string{
 					"component.name": "websocketserver",
+					"error.message":  err.Error(),
 				})
-			return
 		}
 	}
 }
