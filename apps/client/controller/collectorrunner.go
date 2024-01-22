@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"os"
+	"os/signal"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -33,6 +35,9 @@ func newCollectorRunner(
 func (cr *collectorRunner) run() {
 	defer cr.wg.Done()
 
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
+
 	cr.logger.LogWithFields(
 		logrus.InfoLevel,
 		"Starting controller runner...",
@@ -58,11 +63,24 @@ func (cr *collectorRunner) run() {
 			"component.name": "controllerrunner",
 		})
 
-	for run := range cr.controllerChannel {
-		if run {
-			cr.otelcol.Start()
-		} else {
+	for {
+		select {
+		case <-interrupt:
+			cr.logger.LogWithFields(
+				logrus.ErrorLevel,
+				"Interrupt received, stopping OTel collector...",
+				map[string]string{
+					"component.name": "controllerrunner",
+				})
 			cr.otelcol.Stop()
+			return
+
+		case otelColSwitch := <-cr.controllerChannel:
+			if otelColSwitch {
+				cr.otelcol.Start()
+			} else {
+				cr.otelcol.Stop()
+			}
 		}
 	}
 }
