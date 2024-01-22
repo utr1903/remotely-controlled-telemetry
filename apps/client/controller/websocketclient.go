@@ -131,7 +131,6 @@ func (wc *websocketClient) run() {
 						"component.name": "websocketclient",
 						"error.message":  err.Error(),
 					})
-				return
 			}
 			return
 		}
