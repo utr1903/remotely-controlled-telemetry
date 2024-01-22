@@ -128,7 +128,7 @@ func (hs *HttpServer) synchronizeWebSocketConnection() {
 	for isReady := range hs.webSocketReadyChannel {
 		if isReady {
 			hs.logger.LogWithFields(
-				logrus.ErrorLevel,
+				logrus.InfoLevel,
 				"Web socket connection is established.",
 				map[string]string{
 					"component.name": "httpserver",
@@ -141,6 +141,7 @@ func (hs *HttpServer) synchronizeWebSocketConnection() {
 				map[string]string{
 					"component.name": "httpserver",
 				})
+			return
 		}
 
 		hs.webSocketSynchronizer.mutex.Lock()

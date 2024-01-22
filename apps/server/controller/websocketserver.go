@@ -134,7 +134,6 @@ func (ws *webSocketServer) handleConnections(
 					"component.name": "websocketserver",
 					"error.message":  err.Error(),
 				})
-			return
 		}
 	}
 }
