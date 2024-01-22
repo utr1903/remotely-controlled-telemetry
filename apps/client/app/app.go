@@ -71,7 +71,7 @@ func (a *App) Run() {
 		// Check for latency change
 		case duration := <-durationChannel:
 			a.logger.LogWithFields(
-				logrus.DebugLevel,
+				logrus.InfoLevel,
 				"Latency change request is received.",
 				map[string]string{
 					"component.name": "application",
