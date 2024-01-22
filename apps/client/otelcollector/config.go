@@ -22,6 +22,15 @@ type otelCollectorConfig struct {
 		File struct {
 			Path string `yaml:"path"`
 		} `yaml:"file"`
+		Otlp struct {
+			Endpoint string `yaml:"endpoint"`
+			Tls      struct {
+				Insecure bool `yaml:"insecure"`
+			} `yaml:"tls"`
+			Headers struct {
+				ApiKey string `yaml:"api-key"`
+			} `yaml:"headers"`
+		} `yaml:"otlp"`
 	} `yaml:"exporters"`
 	Service struct {
 		Pipelines struct {
@@ -81,11 +90,41 @@ func (o *otelCollectorConfigGenerator) generate() error {
 			File struct {
 				Path string "yaml:\"path\""
 			} "yaml:\"file\""
+			Otlp struct {
+				Endpoint string "yaml:\"endpoint\""
+				Tls      struct {
+					Insecure bool "yaml:\"insecure\""
+				} "yaml:\"tls\""
+				Headers struct {
+					ApiKey string "yaml:\"api-key\""
+				} "yaml:\"headers\""
+			} "yaml:\"otlp\""
 		}{
 			File: struct {
 				Path string "yaml:\"path\""
 			}{
 				Path: "./bin/log",
+			},
+			Otlp: struct {
+				Endpoint string "yaml:\"endpoint\""
+				Tls      struct {
+					Insecure bool "yaml:\"insecure\""
+				} "yaml:\"tls\""
+				Headers struct {
+					ApiKey string "yaml:\"api-key\""
+				} "yaml:\"headers\""
+			}{
+				Endpoint: "otlp.eu01.nr-data.net:4317",
+				Tls: struct {
+					Insecure bool "yaml:\"insecure\""
+				}{
+					Insecure: false,
+				},
+				Headers: struct {
+					ApiKey string "yaml:\"api-key\""
+				}{
+					ApiKey: os.Getenv("NEWRELIC_LICENSE_KEY"),
+				},
 			},
 		},
 		Service: struct {
@@ -111,6 +150,7 @@ func (o *otelCollectorConfigGenerator) generate() error {
 					},
 					Exporters: []string{
 						"file",
+						"otlp",
 					},
 				},
 			},
@@ -144,7 +184,7 @@ func (o *otelCollectorConfigGenerator) generate() error {
 		})
 
 	// Create the YAML file
-	file, err := os.Create("./bin/otel-config-test.yaml")
+	file, err := os.Create("./bin/otel-config.yaml")
 	if err != nil {
 		o.logger.LogWithFields(
 			logrus.InfoLevel,
