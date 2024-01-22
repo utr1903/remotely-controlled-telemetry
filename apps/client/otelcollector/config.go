@@ -5,7 +5,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/utr1903/remotely-controlled-telemetry/apps/client/logger"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type otelCollectorConfig struct {
@@ -17,7 +17,20 @@ type otelCollectorConfig struct {
 				} `yaml:"grpc"`
 			} `yaml:"protocols"`
 		} `yaml:"otlp"`
+		Filelog struct {
+			Include   []string `yaml:"include"`
+			Operators []struct {
+				Type string `yaml:"type"`
+			} `yaml:"operators"`
+		} `yaml:"filelog"`
 	} `yaml:"receivers"`
+	Processors struct {
+		Filter struct {
+			Logs struct {
+				LogRecord []string `yaml:"log_record"`
+			} `yaml:"logs"`
+		} `yaml:"filter"`
+	} `yaml:"processors"`
 	Exporters struct {
 		File struct {
 			Path string `yaml:"path"`
@@ -38,6 +51,11 @@ type otelCollectorConfig struct {
 				Receivers []string `yaml:"receivers"`
 				Exporters []string `yaml:"exporters"`
 			} `yaml:"metrics"`
+			Logs struct {
+				Receivers  []string `yaml:"receivers"`
+				Processors []string `yaml:"processors"`
+				Exporters  []string `yaml:"exporters"`
+			} `yaml:"logs"`
 		} `yaml:"pipelines"`
 	} `yaml:"service"`
 }
@@ -65,6 +83,12 @@ func (o *otelCollectorConfigGenerator) generate() error {
 					} "yaml:\"grpc\""
 				} "yaml:\"protocols\""
 			} "yaml:\"otlp\""
+			Filelog struct {
+				Include   []string "yaml:\"include\""
+				Operators []struct {
+					Type string "yaml:\"type\""
+				} "yaml:\"operators\""
+			} "yaml:\"filelog\""
 		}{
 			Otlp: struct {
 				Protocols struct {
@@ -82,6 +106,45 @@ func (o *otelCollectorConfigGenerator) generate() error {
 						Endpoint string "yaml:\"endpoint\""
 					}{
 						Endpoint: "localhost:4317",
+					},
+				},
+			},
+			Filelog: struct {
+				Include   []string "yaml:\"include\""
+				Operators []struct {
+					Type string "yaml:\"type\""
+				} "yaml:\"operators\""
+			}{
+				Include: []string{
+					"./logs/log",
+				},
+				Operators: []struct {
+					Type string "yaml:\"type\""
+				}{
+					{
+						Type: "json_parser",
+					},
+				},
+			},
+		},
+		Processors: struct {
+			Filter struct {
+				Logs struct {
+					LogRecord []string "yaml:\"log_record\""
+				} "yaml:\"logs\""
+			} "yaml:\"filter\""
+		}{
+			Filter: struct {
+				Logs struct {
+					LogRecord []string "yaml:\"log_record\""
+				} "yaml:\"logs\""
+			}{
+				Logs: struct {
+					LogRecord []string "yaml:\"log_record\""
+				}{
+					LogRecord: []string{
+						`IsMatch(attributes["level"], "debug")`,
+						// "''IsMatch(attributes["level"], "debug")''",
 					},
 				},
 			},
@@ -133,6 +196,11 @@ func (o *otelCollectorConfigGenerator) generate() error {
 					Receivers []string "yaml:\"receivers\""
 					Exporters []string "yaml:\"exporters\""
 				} "yaml:\"metrics\""
+				Logs struct {
+					Receivers  []string "yaml:\"receivers\""
+					Processors []string "yaml:\"processors\""
+					Exporters  []string "yaml:\"exporters\""
+				} "yaml:\"logs\""
 			} "yaml:\"pipelines\""
 		}{
 			Pipelines: struct {
@@ -140,6 +208,11 @@ func (o *otelCollectorConfigGenerator) generate() error {
 					Receivers []string "yaml:\"receivers\""
 					Exporters []string "yaml:\"exporters\""
 				} "yaml:\"metrics\""
+				Logs struct {
+					Receivers  []string "yaml:\"receivers\""
+					Processors []string "yaml:\"processors\""
+					Exporters  []string "yaml:\"exporters\""
+				} "yaml:\"logs\""
 			}{
 				Metrics: struct {
 					Receivers []string "yaml:\"receivers\""
@@ -150,6 +223,21 @@ func (o *otelCollectorConfigGenerator) generate() error {
 					},
 					Exporters: []string{
 						"file",
+						"otlp",
+					},
+				},
+				Logs: struct {
+					Receivers  []string "yaml:\"receivers\""
+					Processors []string "yaml:\"processors\""
+					Exporters  []string "yaml:\"exporters\""
+				}{
+					Receivers: []string{
+						"filelog",
+					},
+					Processors: []string{
+						"filter",
+					},
+					Exporters: []string{
 						"otlp",
 					},
 				},
