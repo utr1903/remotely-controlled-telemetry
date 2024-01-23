@@ -110,20 +110,20 @@ func (ws *webSocketServer) handleConnections(
 		}
 	}()
 
-	for otelColSwitch := range ws.controllerChannel {
+	for isDebug := range ws.controllerChannel {
 		ws.logger.LogWithFields(
 			logrus.InfoLevel,
 			"Controller channel input received.",
 			map[string]string{
-				"component.name": "websocketserver",
-				"otelcol.enable": strconv.FormatBool(otelColSwitch),
+				"component.name":     "websocketserver",
+				"otelcol.mode.debug": strconv.FormatBool(isDebug),
 			})
 
 		var message []byte
-		if otelColSwitch {
-			message = []byte("start")
+		if isDebug {
+			message = []byte("debug")
 		} else {
-			message = []byte("stop")
+			message = []byte("default")
 		}
 		err := conn.WriteMessage(websocket.TextMessage, message)
 		if err != nil {

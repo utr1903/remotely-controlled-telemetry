@@ -40,10 +40,12 @@ func New(
 	}
 }
 
-func (c *Collector) Start() error {
+func (c *Collector) Start(
+	isDebug bool,
+) error {
 
 	// Generate OTel collector config file
-	err := c.otelCollectorConfigGenerator.generate()
+	err := c.otelCollectorConfigGenerator.generate(isDebug)
 	if err != nil {
 		return err
 	}

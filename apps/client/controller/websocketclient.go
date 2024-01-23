@@ -85,10 +85,10 @@ func (wc *websocketClient) run() {
 				})
 
 			msg := string(message)
-			if msg == "start" {
+			if msg == "debug" {
 				wc.controllerChannel <- true
 
-			} else if msg == "stop" {
+			} else if msg == "default" {
 				wc.controllerChannel <- false
 			}
 		}
