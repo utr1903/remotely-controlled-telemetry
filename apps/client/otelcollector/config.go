@@ -5,7 +5,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/utr1903/remotely-controlled-telemetry/apps/client/logger"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type otelCollectorConfig struct {
@@ -17,11 +17,33 @@ type otelCollectorConfig struct {
 				} `yaml:"grpc"`
 			} `yaml:"protocols"`
 		} `yaml:"otlp"`
+		Filelog struct {
+			Include   []string `yaml:"include"`
+			Operators []struct {
+				Type string `yaml:"type"`
+			} `yaml:"operators"`
+		} `yaml:"filelog"`
 	} `yaml:"receivers"`
+	Processors struct {
+		Filter struct {
+			Logs struct {
+				LogRecord []string `yaml:"log_record"`
+			} `yaml:"logs"`
+		} `yaml:"filter"`
+	} `yaml:"processors"`
 	Exporters struct {
 		File struct {
 			Path string `yaml:"path"`
 		} `yaml:"file"`
+		Otlp struct {
+			Endpoint string `yaml:"endpoint"`
+			Tls      struct {
+				Insecure bool `yaml:"insecure"`
+			} `yaml:"tls"`
+			Headers struct {
+				ApiKey string `yaml:"api-key"`
+			} `yaml:"headers"`
+		} `yaml:"otlp"`
 	} `yaml:"exporters"`
 	Service struct {
 		Pipelines struct {
@@ -29,6 +51,11 @@ type otelCollectorConfig struct {
 				Receivers []string `yaml:"receivers"`
 				Exporters []string `yaml:"exporters"`
 			} `yaml:"metrics"`
+			Logs struct {
+				Receivers  []string `yaml:"receivers"`
+				Processors []string `yaml:"processors"`
+				Exporters  []string `yaml:"exporters"`
+			} `yaml:"logs"`
 		} `yaml:"pipelines"`
 	} `yaml:"service"`
 }
@@ -45,76 +72,340 @@ func newOtelCollectorConfigGenerator(
 	}
 }
 
-func (o *otelCollectorConfigGenerator) generate() error {
+func (o *otelCollectorConfigGenerator) generate(
+	isDebug bool,
+) error {
 
-	cfg := &otelCollectorConfig{
-		Receivers: struct {
-			Otlp struct {
-				Protocols struct {
-					Grpc struct {
-						Endpoint string "yaml:\"endpoint\""
-					} "yaml:\"grpc\""
-				} "yaml:\"protocols\""
-			} "yaml:\"otlp\""
-		}{
-			Otlp: struct {
-				Protocols struct {
-					Grpc struct {
-						Endpoint string "yaml:\"endpoint\""
-					} "yaml:\"grpc\""
-				} "yaml:\"protocols\""
+	var cfg *otelCollectorConfig
+	if isDebug {
+		cfg = &otelCollectorConfig{
+			Receivers: struct {
+				Otlp struct {
+					Protocols struct {
+						Grpc struct {
+							Endpoint string "yaml:\"endpoint\""
+						} "yaml:\"grpc\""
+					} "yaml:\"protocols\""
+				} "yaml:\"otlp\""
+				Filelog struct {
+					Include   []string "yaml:\"include\""
+					Operators []struct {
+						Type string "yaml:\"type\""
+					} "yaml:\"operators\""
+				} "yaml:\"filelog\""
 			}{
-				Protocols: struct {
-					Grpc struct {
-						Endpoint string "yaml:\"endpoint\""
-					} "yaml:\"grpc\""
+				Otlp: struct {
+					Protocols struct {
+						Grpc struct {
+							Endpoint string "yaml:\"endpoint\""
+						} "yaml:\"grpc\""
+					} "yaml:\"protocols\""
 				}{
-					Grpc: struct {
-						Endpoint string "yaml:\"endpoint\""
+					Protocols: struct {
+						Grpc struct {
+							Endpoint string "yaml:\"endpoint\""
+						} "yaml:\"grpc\""
 					}{
-						Endpoint: "localhost:4317",
+						Grpc: struct {
+							Endpoint string "yaml:\"endpoint\""
+						}{
+							Endpoint: "localhost:4317",
+						},
 					},
 				},
-			},
-		},
-		Exporters: struct {
-			File struct {
-				Path string "yaml:\"path\""
-			} "yaml:\"file\""
-		}{
-			File: struct {
-				Path string "yaml:\"path\""
-			}{
-				Path: "./bin/log",
-			},
-		},
-		Service: struct {
-			Pipelines struct {
-				Metrics struct {
-					Receivers []string "yaml:\"receivers\""
-					Exporters []string "yaml:\"exporters\""
-				} "yaml:\"metrics\""
-			} "yaml:\"pipelines\""
-		}{
-			Pipelines: struct {
-				Metrics struct {
-					Receivers []string "yaml:\"receivers\""
-					Exporters []string "yaml:\"exporters\""
-				} "yaml:\"metrics\""
-			}{
-				Metrics: struct {
-					Receivers []string "yaml:\"receivers\""
-					Exporters []string "yaml:\"exporters\""
+				Filelog: struct {
+					Include   []string "yaml:\"include\""
+					Operators []struct {
+						Type string "yaml:\"type\""
+					} "yaml:\"operators\""
 				}{
-					Receivers: []string{
-						"otlp",
+					Include: []string{
+						"./logs/log",
 					},
-					Exporters: []string{
-						"file",
+					Operators: []struct {
+						Type string "yaml:\"type\""
+					}{
+						{
+							Type: "json_parser",
+						},
 					},
 				},
 			},
-		},
+			Processors: struct {
+				Filter struct {
+					Logs struct {
+						LogRecord []string "yaml:\"log_record\""
+					} "yaml:\"logs\""
+				} "yaml:\"filter\""
+			}{
+				Filter: struct {
+					Logs struct {
+						LogRecord []string "yaml:\"log_record\""
+					} "yaml:\"logs\""
+				}{},
+			},
+			Exporters: struct {
+				File struct {
+					Path string "yaml:\"path\""
+				} "yaml:\"file\""
+				Otlp struct {
+					Endpoint string "yaml:\"endpoint\""
+					Tls      struct {
+						Insecure bool "yaml:\"insecure\""
+					} "yaml:\"tls\""
+					Headers struct {
+						ApiKey string "yaml:\"api-key\""
+					} "yaml:\"headers\""
+				} "yaml:\"otlp\""
+			}{
+				File: struct {
+					Path string "yaml:\"path\""
+				}{
+					Path: "./bin/log",
+				},
+				Otlp: struct {
+					Endpoint string "yaml:\"endpoint\""
+					Tls      struct {
+						Insecure bool "yaml:\"insecure\""
+					} "yaml:\"tls\""
+					Headers struct {
+						ApiKey string "yaml:\"api-key\""
+					} "yaml:\"headers\""
+				}{
+					Endpoint: "otlp.eu01.nr-data.net:4317",
+					Tls: struct {
+						Insecure bool "yaml:\"insecure\""
+					}{
+						Insecure: false,
+					},
+					Headers: struct {
+						ApiKey string "yaml:\"api-key\""
+					}{
+						ApiKey: os.Getenv("NEWRELIC_LICENSE_KEY"),
+					},
+				},
+			},
+			Service: struct {
+				Pipelines struct {
+					Metrics struct {
+						Receivers []string "yaml:\"receivers\""
+						Exporters []string "yaml:\"exporters\""
+					} "yaml:\"metrics\""
+					Logs struct {
+						Receivers  []string "yaml:\"receivers\""
+						Processors []string "yaml:\"processors\""
+						Exporters  []string "yaml:\"exporters\""
+					} "yaml:\"logs\""
+				} "yaml:\"pipelines\""
+			}{
+				Pipelines: struct {
+					Metrics struct {
+						Receivers []string "yaml:\"receivers\""
+						Exporters []string "yaml:\"exporters\""
+					} "yaml:\"metrics\""
+					Logs struct {
+						Receivers  []string "yaml:\"receivers\""
+						Processors []string "yaml:\"processors\""
+						Exporters  []string "yaml:\"exporters\""
+					} "yaml:\"logs\""
+				}{
+					Metrics: struct {
+						Receivers []string "yaml:\"receivers\""
+						Exporters []string "yaml:\"exporters\""
+					}{
+						Receivers: []string{
+							"otlp",
+						},
+						Exporters: []string{
+							"file",
+							"otlp",
+						},
+					},
+					Logs: struct {
+						Receivers  []string "yaml:\"receivers\""
+						Processors []string "yaml:\"processors\""
+						Exporters  []string "yaml:\"exporters\""
+					}{
+						Receivers: []string{
+							"filelog",
+						},
+						Exporters: []string{
+							"otlp",
+						},
+					},
+				},
+			},
+		}
+	} else {
+		cfg = &otelCollectorConfig{
+			Receivers: struct {
+				Otlp struct {
+					Protocols struct {
+						Grpc struct {
+							Endpoint string "yaml:\"endpoint\""
+						} "yaml:\"grpc\""
+					} "yaml:\"protocols\""
+				} "yaml:\"otlp\""
+				Filelog struct {
+					Include   []string "yaml:\"include\""
+					Operators []struct {
+						Type string "yaml:\"type\""
+					} "yaml:\"operators\""
+				} "yaml:\"filelog\""
+			}{
+				Otlp: struct {
+					Protocols struct {
+						Grpc struct {
+							Endpoint string "yaml:\"endpoint\""
+						} "yaml:\"grpc\""
+					} "yaml:\"protocols\""
+				}{
+					Protocols: struct {
+						Grpc struct {
+							Endpoint string "yaml:\"endpoint\""
+						} "yaml:\"grpc\""
+					}{
+						Grpc: struct {
+							Endpoint string "yaml:\"endpoint\""
+						}{
+							Endpoint: "localhost:4317",
+						},
+					},
+				},
+				Filelog: struct {
+					Include   []string "yaml:\"include\""
+					Operators []struct {
+						Type string "yaml:\"type\""
+					} "yaml:\"operators\""
+				}{
+					Include: []string{
+						"./logs/log",
+					},
+					Operators: []struct {
+						Type string "yaml:\"type\""
+					}{
+						{
+							Type: "json_parser",
+						},
+					},
+				},
+			},
+			Processors: struct {
+				Filter struct {
+					Logs struct {
+						LogRecord []string "yaml:\"log_record\""
+					} "yaml:\"logs\""
+				} "yaml:\"filter\""
+			}{
+				Filter: struct {
+					Logs struct {
+						LogRecord []string "yaml:\"log_record\""
+					} "yaml:\"logs\""
+				}{
+					Logs: struct {
+						LogRecord []string "yaml:\"log_record\""
+					}{
+						LogRecord: []string{
+							`IsMatch(attributes["level"], "debug")`,
+						},
+					},
+				},
+			},
+			Exporters: struct {
+				File struct {
+					Path string "yaml:\"path\""
+				} "yaml:\"file\""
+				Otlp struct {
+					Endpoint string "yaml:\"endpoint\""
+					Tls      struct {
+						Insecure bool "yaml:\"insecure\""
+					} "yaml:\"tls\""
+					Headers struct {
+						ApiKey string "yaml:\"api-key\""
+					} "yaml:\"headers\""
+				} "yaml:\"otlp\""
+			}{
+				File: struct {
+					Path string "yaml:\"path\""
+				}{
+					Path: "./bin/log",
+				},
+				Otlp: struct {
+					Endpoint string "yaml:\"endpoint\""
+					Tls      struct {
+						Insecure bool "yaml:\"insecure\""
+					} "yaml:\"tls\""
+					Headers struct {
+						ApiKey string "yaml:\"api-key\""
+					} "yaml:\"headers\""
+				}{
+					Endpoint: "otlp.eu01.nr-data.net:4317",
+					Tls: struct {
+						Insecure bool "yaml:\"insecure\""
+					}{
+						Insecure: false,
+					},
+					Headers: struct {
+						ApiKey string "yaml:\"api-key\""
+					}{
+						ApiKey: os.Getenv("NEWRELIC_LICENSE_KEY"),
+					},
+				},
+			},
+			Service: struct {
+				Pipelines struct {
+					Metrics struct {
+						Receivers []string "yaml:\"receivers\""
+						Exporters []string "yaml:\"exporters\""
+					} "yaml:\"metrics\""
+					Logs struct {
+						Receivers  []string "yaml:\"receivers\""
+						Processors []string "yaml:\"processors\""
+						Exporters  []string "yaml:\"exporters\""
+					} "yaml:\"logs\""
+				} "yaml:\"pipelines\""
+			}{
+				Pipelines: struct {
+					Metrics struct {
+						Receivers []string "yaml:\"receivers\""
+						Exporters []string "yaml:\"exporters\""
+					} "yaml:\"metrics\""
+					Logs struct {
+						Receivers  []string "yaml:\"receivers\""
+						Processors []string "yaml:\"processors\""
+						Exporters  []string "yaml:\"exporters\""
+					} "yaml:\"logs\""
+				}{
+					Metrics: struct {
+						Receivers []string "yaml:\"receivers\""
+						Exporters []string "yaml:\"exporters\""
+					}{
+						Receivers: []string{
+							"otlp",
+						},
+						Exporters: []string{
+							"file",
+							"otlp",
+						},
+					},
+					Logs: struct {
+						Receivers  []string "yaml:\"receivers\""
+						Processors []string "yaml:\"processors\""
+						Exporters  []string "yaml:\"exporters\""
+					}{
+						Receivers: []string{
+							"filelog",
+						},
+						Processors: []string{
+							"filter",
+						},
+						Exporters: []string{
+							"otlp",
+						},
+					},
+				},
+			},
+		}
 	}
 
 	// Marshal the struct into YAML format
@@ -144,7 +435,7 @@ func (o *otelCollectorConfigGenerator) generate() error {
 		})
 
 	// Create the YAML file
-	file, err := os.Create("./bin/otel-config-test.yaml")
+	file, err := os.Create("./bin/otel-config.yaml")
 	if err != nil {
 		o.logger.LogWithFields(
 			logrus.InfoLevel,

@@ -44,7 +44,7 @@ func (cr *collectorRunner) run() {
 		map[string]string{
 			"component.name": "controllerrunner",
 		})
-	err := cr.otelcol.Start()
+	err := cr.otelcol.Start(false)
 	if err != nil {
 		cr.logger.LogWithFields(
 			logrus.ErrorLevel,
@@ -75,12 +75,9 @@ func (cr *collectorRunner) run() {
 			cr.otelcol.Stop()
 			return
 
-		case otelColSwitch := <-cr.controllerChannel:
-			if otelColSwitch {
-				cr.otelcol.Start()
-			} else {
-				cr.otelcol.Stop()
-			}
+		case isDebug := <-cr.controllerChannel:
+			cr.otelcol.Stop()
+			cr.otelcol.Start(isDebug)
 		}
 	}
 }
